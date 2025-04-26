@@ -1,64 +1,95 @@
- in st.session_state:
-    st.session_state.failed_attempts = 0
+ import streamlit as st
+import hashlib
+import json
+import time
+from cryptography.fernet import Fernet
+import base64
 
-# Function to hash passkey
+# Generate key for encryption
+key = Fernet.generate_key()
+cipher = Fernet(key)
+
+# Simple in-memory database
+stored_data = {}
+
+# Hash passkey
 def hash_passkey(passkey):
     return hashlib.sha256(passkey.encode()).hexdigest()
 
-st.title("🔒 Simple Secure Data Storage")
+# Encrypt text
+def encrypt_text(text):
+    return cipher.encrypt(text.encode()).decode()
 
-# Login page after 3 wrong tries
+# Decrypt text
+def decrypt_text(text):
+    return cipher.decrypt(text.encode()).decode()
+
+# Session states
+if "authorized" not in st.session_state:
+    st.session_state.authorized = True
+
+if "failed_attempts" not in st.session_state:
+    st.session_state.failed_attempts = 0
+
+st.title("🔐 Secure Data Storage App")
+
+# LOGIN page after 3 wrong tries
 if not st.session_state.authorized:
-    st.subheader("🔑 Please Login Again")
+    st.subheader("🔒 Re-login Required")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
-    
     if st.button("Login"):
         if username == "admin" and password == "1234":
             st.success("Login Successful!")
             st.session_state.authorized = True
             st.session_state.failed_attempts = 0
         else:
-            st.error("Incorrect Username or Password")
+            st.error("Wrong Username or Password.")
 
-# Main app if authorized
+# MAIN app
 else:
-    menu = st.sidebar.selectbox("Menu", ["🏠 Home", "➕ Insert Data", "🔍 Retrieve Data"])
+    menu = st.selectbox("Select an option", ["Home", "Insert Data", "Retrieve Data"])
 
-    if menu == "🏠 Home":
-        st.write("👋 Welcome! Save and retrieve your text securely using a secret passkey.")
+    if menu == "Home":
+        st.write("👋 Welcome! This project was created.")
+        st.write("You can insert and retrieve your text safely with a passkey.")
 
-    elif menu == "➕ Insert Data":
-        st.subheader("➕ Insert New Data")
-        text = st.text_area("Enter your text:")
+    elif menu == "Insert Data":
+        st.subheader("📥 Insert New Data")
+        text = st.text_area("Enter the text you want to store:")
         passkey = st.text_input("Enter a passkey:", type="password")
 
-        if st.button("Save Data"):
+        if st.button("Store Data"):
             if text and passkey:
-                hashed_key = hash_passkey(passkey)
-                stored_data[hashed_key] = text
+                hashed = hash_passkey(passkey)
+                encrypted = encrypt_text(text)
+                stored_data[hashed] = encrypted
                 st.success("✅ Data Stored Successfully!")
             else:
-                st.error("Please fill all fields!")
+                st.error("❗ Please fill both fields!")
 
-    elif menu == "🔍 Retrieve Data":
+    elif menu == "Retrieve Data":
         st.subheader("🔍 Retrieve Your Data")
-        passkey = st.text_input("Enter your passkey:", type="password")
+        passkey = st.text_input("Enter your passkey to retrieve data:", type="password")
 
         if st.button("Retrieve"):
             if passkey:
-                hashed_key = hash_passkey(passkey)
-                if hashed_key in stored_data:
-                    st.success("✅ Data Retrieved Successfully!")
-                    st.write(stored_data[hashed_key])
-                    st.session_state.failed_attempts = 0
+                hashed = hash_passkey(passkey)
+                if hashed in stored_data:
+                    decrypted = decrypt_text(stored_data[hashed])
+                    st.success("✅ Your stored text is:")
+                    st.write(decrypted)
+                    st.session_state.failed_attempts = 0  # Reset attempts
                 else:
-                    st.error("Wrong passkey!")
+                    st.error("❗ Wrong passkey!")
                     st.session_state.failed_attempts += 1
-                    st.warning(f"❌ Attempts: {st.session_state.failed_attempts}")
+                    st.warning(f"Failed Attempts: {st.session_state.failed_attempts}")
 
                     if st.session_state.failed_attempts >= 3:
+                        st.error("🔒 Too many failed attempts. Please re-login.")
                         st.session_state.authorized = False
-                        st.error("🚫 Too many wrong tries. Login required!")
             else:
-                st.error("Please enter a passkey.")
+                st.error("❗ Please enter a passkey.")
+
+       
+       
