@@ -5,12 +5,21 @@ import time
 from cryptography.fernet import Fernet
 import base64
 
-# Generate key for encryption
-key = Fernet.generate_key()
-cipher = Fernet(key)
-
 # Simple in-memory database
 stored_data = {}
+
+# Session states
+if "authorized" not in st.session_state:
+    st.session_state.authorized = True
+
+if "failed_attempts" not in st.session_state:
+    st.session_state.failed_attempts = 0
+
+# Generate or reuse encryption key
+if "key" not in st.session_state:
+    st.session_state.key = Fernet.generate_key()
+
+cipher = Fernet(st.session_state.key)
 
 # Hash passkey
 def hash_passkey(passkey):
@@ -23,13 +32,6 @@ def encrypt_text(text):
 # Decrypt text
 def decrypt_text(text):
     return cipher.decrypt(text.encode()).decode()
-
-# Session states
-if "authorized" not in st.session_state:
-    st.session_state.authorized = True
-
-if "failed_attempts" not in st.session_state:
-    st.session_state.failed_attempts = 0
 
 st.title("🔐 Secure Data Storage App")
 
@@ -51,7 +53,7 @@ else:
     menu = st.selectbox("Select an option", ["Home", "Insert Data", "Retrieve Data"])
 
     if menu == "Home":
-        st.write("👋 Welcome! This project was created.")
+        st.write("👋 Welcome! This app securely stores your data.")
         st.write("You can insert and retrieve your text safely with a passkey.")
 
     elif menu == "Insert Data":
@@ -91,5 +93,3 @@ else:
             else:
                 st.error("❗ Please enter a passkey.")
 
-       
-       
